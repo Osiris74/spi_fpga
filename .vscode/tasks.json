@@ -1,0 +1,49 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Compile Project (Quartus)",
+        "type": "shell",
+        "command": "C:/intelFPGA_lite/23.1std/quartus/bin64/quartus_sh --flow compile vscode_fpga_project.qpf",
+        "group": "build",
+        "problemMatcher": [],
+        "presentation": {
+          "reveal": "always",
+          "panel": "dedicated"
+        }
+      },
+      {
+        "label": "Program FPGA (SOF)",
+        "type": "shell",
+        "command": "quartus_pgm -m jtag -o \"p;output_files/vscode_fpga_project.sof\"",
+        "group": "test",
+        "problemMatcher": [],
+        "presentation": {
+          "reveal": "always",
+          "panel": "dedicated"
+        }
+      },
+      {
+        "label": "Compile & Simulate (ICARUS Verilog)",
+        "type": "shell",
+        "command": "iverilog -g2012 -o sim.out -I .src/ testbench/tb.sv src/*.sv && vvp sim.out -v && gtkwave wave.vcd",
+        "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+      },
+      {
+        "label": "Compile & Simulate (QuestaSim)",
+        "type": "shell",
+        "command": "vsim -do questa_run.tcl -c",
+        "group": {
+            "kind": "build",
+            "isDefault": true
+        },
+        "presentation": {
+            "echo": true,
+            "reveal": "always"
+        }
+    }
+    ]
+  }
