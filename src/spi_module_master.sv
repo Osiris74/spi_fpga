@@ -68,8 +68,9 @@ reg                       leading_edge_reg;
 
 //
 // -------------------------------------- INTERNAL WIRES --------------------------------------
-wire next_bit     = CPHA ? (leading_edge_reg && spi_en) : (trailing_edge_reg && spi_en);
-wire end_of_transaction = (bit_cnt  == 7) && (next_bit);
+wire save_bit           = CPHA ? (trailing_edge_reg) : (leading_edge_reg);
+wire put_bit            = leading_edge_reg & CPHA   | trailing_edge_reg & ~CPHA;
+wire end_of_transaction = (bit_cnt  == 7) & (trailing_edge_reg);
 // ---------------------------------------------------------------------------------------------
 //
 
@@ -77,8 +78,7 @@ wire end_of_transaction = (bit_cnt  == 7) && (next_bit);
 // --------------------------------------- OUTPUT ASSIGNEMENT ---------------------------------
 assign spi_clk          = spi_clk_reg;
 assign spi_cs           = (fsm_state == FSM_IDLE || payload_done) ? 'b1 : 'b0;
-assign spi_mosi         = data_to_send [7 - bit_cnt];
-//assign payload_done     = (bit_cnt  == 7) && (next_bit);
+assign spi_mosi         = data_to_send[7 - bit_cnt];
 // ---------------------------------------------------------------------------------------------
 //
 
@@ -87,7 +87,7 @@ assign spi_mosi         = data_to_send [7 - bit_cnt];
 always @(*) begin : p_n_fsm_state
     case(fsm_state)
       FSM_IDLE    : n_fsm_state     = spi_en         ? FSM_START : FSM_IDLE;
-      FSM_START   : n_fsm_state     = next_bit       ? FSM_SEND  : FSM_SEND;
+      FSM_START   : n_fsm_state     = put_bit        ? FSM_SEND  : FSM_START;
       FSM_SEND    : n_fsm_state     = (payload_done) ? FSM_IDLE  : FSM_SEND;
       default: n_fsm_state = FSM_IDLE;
     endcase
@@ -99,13 +99,9 @@ end
 //------------------------------------ PROGRESSES FSM STATE ----------------------------------------
 always_ff @(posedge clk) begin : p_fsm_state
     if(rst) 
-    begin
         fsm_state <= FSM_IDLE;
-    end
     else 
-    begin
         fsm_state <= n_fsm_state;
-    end
 end
 //---------------------------------------------------------------------------------------------------
 //
@@ -113,65 +109,76 @@ end
 //
 //------------------------------------------ SPI_CLK GENERATOR ---------------------------------
 always_ff @(posedge clk) begin : p_cycle_counter
-    if(rst || !spi_en) 
+    if(rst | fsm_state == FSM_IDLE) 
     begin
         clk_cnt           <= 'b0;
         spi_clk_reg       <= CPOL;
-        leading_edge_reg  <= 'b0;
-        trailing_edge_reg <= 'b0;
     end
     else
     begin
-        //if (fsm_state != FSM_IDLE)
-        //begin
-            leading_edge_reg  <= 'b0;
-            trailing_edge_reg <= 'b0;
-            clk_cnt <= clk_cnt + 1'b1;
+        if (~payload_done)
+        begin
+            spi_clk_reg  <= spi_clk_reg;
+            clk_cnt      <= clk_cnt + 1'b1;
 
             if(clk_cnt       == CYCLES_PER_BIT - 1)
             begin
                 clk_cnt           <= 'b0;
                 spi_clk_reg       <= ~spi_clk_reg;
-                trailing_edge_reg <= 'b1;
             end
             else if (clk_cnt       == CYCLES_PER_HALF_BIT - 1)
             begin
                 spi_clk_reg       <= ~spi_clk_reg;
-                leading_edge_reg  <= 'b1;
             end
-        //end
-        /*else
-            begin
-                clk_cnt           <= 'b0;
-                spi_clk_reg       <= CPOL;
-                leading_edge_reg  <= 'b0;
-                trailing_edge_reg <= 'b0;
-            end
-        */
+        end
+        else
+        begin
+            clk_cnt           <= 'b0;
+            spi_clk_reg       <= CPOL;
+        end
     end
 end
 //
 //-------------------------------------------------------------------------------------------------
 
 //
+//--------------------------------------- EDGE DETECTOR -------------------------------------------
+always_ff @(posedge clk) begin : p_edge_detector
+    if (rst)
+    begin
+        leading_edge_reg  <= 'b0;
+        trailing_edge_reg <= 'b0;
+    end
+    else
+    begin 
+        leading_edge_reg  <= 'b0;
+        trailing_edge_reg <= 'b0;
+
+        if(clk_cnt       == CYCLES_PER_BIT - 1)
+        begin
+            trailing_edge_reg <= 'b1;
+        end
+        else if (clk_cnt      == CYCLES_PER_HALF_BIT - 1)
+        begin
+            leading_edge_reg  <= 'b1;
+        end
+    end
+end
+
+//
 //------------------------------------- SPI BIT COUNTER -------------------------------------------
 always_ff @(posedge clk) begin : p_bit_counter
-    if(rst || fsm_state != FSM_SEND) 
-    begin
+    if(rst) 
         bit_cnt <= 'b0;
-    end 
     else
     begin
         bit_cnt <= bit_cnt;
 
-        if(end_of_transaction)
-        begin
+        // Skips 1 clock for falling edges
+        if(end_of_transaction | (fsm_state == FSM_START & CPHA))
             bit_cnt <= 'b0;
-        end
-        else if(next_bit) 
-        begin
+        else if (put_bit)
             bit_cnt <= bit_cnt + 1'b1;
-        end
     end
 end
 //--------------------------------------------------------------------------------------------------
@@ -181,17 +188,13 @@ end
 //---------------------------------------- LATCHES THE DATA -----------------------------------------
 always_ff @(posedge clk) begin : p_txd_reg
     if(rst || !spi_en) 
-    begin
         data_to_send <= 'b0;
-    end 
     else
     begin
         data_to_send <= data_to_send;
 
         if(fsm_state == FSM_IDLE && n_fsm_state == FSM_START)
-        begin
             data_to_send <= spi_mosi_data;
-        end
     end
 end
 //----------------------------------------------------------------------------------------------------
@@ -207,18 +210,16 @@ always_ff @(posedge clk) begin : p_rxd_reg
     end 
     else
     begin
+        spi_miso_data   <= spi_miso_data;
+        data_to_receive <= data_to_receive;
+
         if (end_of_transaction)
         begin
             spi_miso_data   <= {data_to_receive[7:1], spi_miso};
             data_to_receive <= 'b0;
         end
-        else
-            spi_miso_data <= spi_miso_data;
-        
-        if (next_bit)
-            data_to_receive [7-bit_cnt] <= spi_miso;
-        else
-            data_to_receive <= data_to_receive;
+        else if (save_bit)
+                data_to_receive [7-bit_cnt] <= spi_miso;
     end
 end
 //---------------------------------------------------------------------------------------------------

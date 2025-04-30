@@ -28,7 +28,7 @@ module tb_mosi;
     spi_module_master #(
         .FREQUENCY  ( FREQUENCY ),
         .CLK_HZ     ( CLK_HZ    ),
-        .CPOL       (   1       ),
+        .CPOL       (   0       ),
         .CPHA       (   1       )
     )
     i_spi_module_master
@@ -71,10 +71,13 @@ module tb_mosi;
                     spi_received_data[i] = spi_mosi;
                 end
 
-                for(int i = 7; i >= 0; i--) 
+                for(int j = 7; j >= 0; j--) 
                 begin
-                    @(posedge spi_clk);
-                    spi_miso = spi_mosi_data[i]; 
+                    if (i_spi_module_master.CPOL == 1)
+                        @(negedge spi_clk);
+                    else
+                        @(posedge spi_clk);
+                    spi_miso = spi_mosi_data[j]; 
                 end
 
             join
@@ -122,7 +125,6 @@ module tb_mosi;
             spi_mosi_data = $random;
             spi_en = 1;
             spi_rcv_byte();
-            #10;
         end
         
         

@@ -1,8 +1,11 @@
-# 1. Удаление предыдущих сессий
-vlib work
-vmap work work
+set output_dir "./sim_results"
+file mkdir $output_dir
 
-# Процедура для рекурсивного поиска .sv файлов
+# 1. Delete previous sessions
+vlib ${output_dir}/work
+vmap work ${output_dir}/work
+
+# Recursive search for .sv files
 proc find_recursive { base_dir pattern } {
     set files [list]
     if {![file exists $base_dir]} {
@@ -23,19 +26,22 @@ proc find_recursive { base_dir pattern } {
 }
 
 set src_files [find_recursive "./src" "*.sv"]
+
 vlog -sv -work work {*}$src_files ./testbench/tb_mosi.sv
 
-# 3. Оптимизация с сохранением видимости
+# 3. Optimization
 vopt work.tb_mosi -o tb_opt +acc
 
-# 4. Запуск симуляции и сохранение WLF
-vsim -gui -wlf wave.wlf tb_opt
+# 4. Start simulation and saving WLF
+vsim -gui \
+    -wlf ${output_dir}/wave.wlf \
+    -l ${output_dir}/simulation.log \
+    tb_opt
 
-# 5. Открыть окно Wave и добавить все сигналы
+# 5. Open Wave window + add all signals
 view wave
 add wave -position insertpoint /*
 
-# 6. Запустить симуляцию до конца
 run -all
 
 
