@@ -11,7 +11,7 @@ module spi_module_master #
     input  wire       rst            , // Asynchronous active low reset.
     input  wire       spi_en         , // Start/stop signal for SPI
     input  wire       spi_miso       , // Master input slave output input
-    input  reg   [7:0] spi_mosi_data , 
+    input  reg  [7:0] spi_mosi_data , 
     
     output wire       spi_clk        ,
     output wire       spi_mosi       ,
@@ -26,11 +26,7 @@ module spi_module_master #
 
 //
 // Number of top clk cycles to transmit one bit
-localparam  CYCLES_PER_BIT      = (CLK_HZ / FREQUENCY) * 2;
-
-//
-// Half of a number of clk
-localparam  CYCLES_PER_HALF_BIT = CYCLES_PER_BIT / 2;
+localparam  CYCLES_PER_BIT      = (CLK_HZ / FREQUENCY);
 
 //
 // Size of the registers which store sample counts and bit durations.
@@ -58,7 +54,6 @@ reg [                4:0] bit_cnt;
 reg [                7:0] data_to_send;
 reg [                7:0] data_to_receive;
 
-reg                       spi_cs_reg;
 reg                       spi_clk_reg;
 
 reg                       trailing_edge_reg;
@@ -69,7 +64,7 @@ reg                       leading_edge_reg;
 //
 // -------------------------------------- INTERNAL WIRES --------------------------------------
 wire save_bit           = CPHA ? (trailing_edge_reg) : (leading_edge_reg);
-wire put_bit            = leading_edge_reg & CPHA   | trailing_edge_reg & ~CPHA;
+wire put_bit            = CPHA ? (leading_edge_reg)  : (trailing_edge_reg);
 wire end_of_transaction = (bit_cnt  == 7) & (trailing_edge_reg);
 // ---------------------------------------------------------------------------------------------
 //
@@ -126,10 +121,6 @@ always_ff @(posedge clk) begin : p_cycle_counter
                 clk_cnt           <= 'b0;
                 spi_clk_reg       <= ~spi_clk_reg;
             end
-            else if (clk_cnt       == CYCLES_PER_HALF_BIT - 1)
-            begin
-                spi_clk_reg       <= ~spi_clk_reg;
-            end
         end
         else
         begin
@@ -143,27 +134,19 @@ end
 
 //
 //--------------------------------------- EDGE DETECTOR -------------------------------------------
-always_ff @(posedge clk) begin : p_edge_detector
-    if (rst)
-    begin
-        leading_edge_reg  <= 'b0;
-        trailing_edge_reg <= 'b0;
-    end
-    else
-    begin 
-        leading_edge_reg  <= 'b0;
-        trailing_edge_reg <= 'b0;
 
-        if(clk_cnt       == CYCLES_PER_BIT - 1)
-        begin
-            trailing_edge_reg <= 'b1;
-        end
-        else if (clk_cnt      == CYCLES_PER_HALF_BIT - 1)
-        begin
-            leading_edge_reg  <= 'b1;
-        end
-    end
-end
+edge_detector #
+(
+    .CPOL(CPOL)
+)
+i_edge_detector
+(
+    .clk            (   clk            ),
+    .rst            (   rst            ),
+    .signal         (   spi_clk        ),
+    .positive_edge  (leading_edge_reg  ),
+    .negative_edge  (trailing_edge_reg )
+);
 
 //
 //------------------------------------- SPI BIT COUNTER -------------------------------------------

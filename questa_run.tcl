@@ -27,10 +27,10 @@ proc find_recursive { base_dir pattern } {
 
 set src_files [find_recursive "./src" "*.sv"]
 
-vlog -sv -work work {*}$src_files ./testbench/tb_mosi.sv
+vlog -sv -work work {*}$src_files ./testbench/tb_slave.sv
 
 # 3. Optimization
-vopt work.tb_mosi -o tb_opt +acc
+vopt work.tb_slave -o tb_opt +acc
 
 # 4. Start simulation and saving WLF
 vsim -gui \
