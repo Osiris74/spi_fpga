@@ -4,11 +4,13 @@ module tb_master;
 
     // Parameters
 
-    localparam CLK_HZ = 50_000_000;  // 50 MHz clock (20 ns period)
-    localparam CLK_PERIOD = 1_000_000_000 / CLK_HZ;
+    localparam CLK_HZ       = 50_000_000;  // 50 MHz clock (20 ns period)
+    localparam CLK_PERIOD   = 1_000_000_000 / CLK_HZ;
 
-    localparam FREQUENCY = 10_000_000; // 1 MHz SPI clock (1000 ns period)
-    localparam SPI_PERIOD = 1_000_000_000 / FREQUENCY;
+    localparam FREQUENCY    = 10_000_000; // 1 MHz SPI clock (1000 ns period)
+    localparam SPI_PERIOD   = 1_000_000_000 / FREQUENCY;
+
+    localparam PAYLOAD_BITS = 16;
 
     // Signals
     logic       clk;
@@ -23,13 +25,15 @@ module tb_master;
     logic [7:0] spi_miso_data;
 
     logic       payload_done;
+    logic       transmit_en;
 
     // Instantiate DUT
     spi_module_master #(
-        .FREQUENCY  ( FREQUENCY ),
-        .CLK_HZ     ( CLK_HZ    ),
-        .CPOL       (   0       ),
-        .CPHA       (   0       )
+        .FREQUENCY     ( FREQUENCY      ),
+        .CLK_HZ        ( CLK_HZ         ),
+        .CPOL          (   0            ),
+        .CPHA          (   0            ),
+        .PAYLOAD_BITS  ( PAYLOAD_BITS   )
     )
     i_spi_module_master
     (
@@ -42,7 +46,8 @@ module tb_master;
         .spi_mosi       ( spi_mosi      ),
         .spi_cs         ( spi_cs        ),
         .spi_miso_data  ( spi_miso_data ),
-        .payload_done   ( payload_done  )
+        .payload_done   ( payload_done  ),
+        .transmit_en    ( transmit_en   )
     );
 
     // Clock generation

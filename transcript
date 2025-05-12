@@ -5,22 +5,24 @@
 # QuestaSim-64 vmap 2024.1 Lib Mapping Utility 2024.02 Feb  1 2024
 # vmap work ./sim_results/work 
 # Modifying modelsim.ini
-# ./src/edge_detector.sv ./src/spi_module_master.sv ./src/spi_module_slave.sv
+# ./src/edge_detector.sv ./src/spi_module_master.sv ./src/spi_module_slave.sv ./src/top_spi.sv
 # QuestaSim-64 vlog 2024.1 Compiler 2024.02 Feb  1 2024
-# Start time: 15:11:37 on May 06,2025
-# vlog -sv -work work ./src/edge_detector.sv ./src/spi_module_master.sv ./src/spi_module_slave.sv ./testbench/tb_slave.sv 
+# Start time: 17:23:05 on May 12,2025
+# vlog -sv -work work ./src/edge_detector.sv ./src/spi_module_master.sv ./src/spi_module_slave.sv ./src/top_spi.sv ./testbench/tb_slave.sv 
 # -- Compiling module edge_detector
 # -- Compiling module spi_module_master
 # -- Compiling module spi_module_slave
+# -- Compiling module top_spi
 # -- Compiling module tb_slave
 # 
 # Top level modules:
+# 	top_spi
 # 	tb_slave
-# End time: 15:11:37 on May 06,2025, Elapsed time: 0:00:00
+# End time: 17:23:05 on May 12,2025, Elapsed time: 0:00:00
 # Errors: 0, Warnings: 0
 # QuestaSim-64 vopt 2024.1 Compiler 2024.02 Feb  1 2024
 # ** Warning: (vopt-10587) Some optimizations are turned off because the +acc switch is in effect. This will cause your simulation to run slowly. Please use -access/-debug to maintain needed visibility.
-# Start time: 15:11:37 on May 06,2025
+# Start time: 17:23:05 on May 12,2025
 # vopt work.tb_slave -o tb_opt "+acc" 
 # 
 # Top level modules:
@@ -33,14 +35,13 @@
 # -- Loading module spi_module_master
 # -- Loading module edge_detector
 # -- Loading module spi_module_slave
-# Incremental compilation check found no design-units (out of 4) may be reused.
-# Optimizing 4 design-units (inlining 0/5 module instances):
+# Incremental compilation check found 1 design-unit (out of 4) may be reused.
+# Optimizing 3 design-units (inlining 0/5 module instances):
 # -- Optimizing module spi_module_master(fast)
 # ** Note: (vopt-143) Recognized 1 FSM in module "spi_module_master(fast)".
 # -- Optimizing module tb_slave(fast)
 # -- Optimizing module spi_module_slave(fast)
 # ** Note: (vopt-143) Recognized 1 FSM in module "spi_module_slave(fast)".
-# -- Optimizing module edge_detector(fast)
 # Optimized design name is tb_opt
-# End time: 15:11:37 on May 06,2025, Elapsed time: 0:00:00
+# End time: 17:23:05 on May 12,2025, Elapsed time: 0:00:00
 # Errors: 0, Warnings: 1

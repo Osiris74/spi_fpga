@@ -4,39 +4,44 @@ module tb_slave;
 
     // Parameters
 
-    localparam CLK_HZ = 50_000_000;  // 50 MHz clock (20 ns period)
-    localparam CLK_PERIOD = 1_000_000_000 / CLK_HZ;
+    localparam CLK_HZ       = 50_000_000;  // 50 MHz clock (20 ns period)
+    localparam CLK_PERIOD   = 1_000_000_000 / CLK_HZ;
 
-    localparam FREQUENCY = 10_000_000; // 1 MHz SPI clock (1000 ns period)
-    localparam SPI_PERIOD = 1_000_000_000 / FREQUENCY;
+    localparam FREQUENCY    = 10_000_000; // 1 MHz SPI clock (1000 ns period)
+    localparam SPI_PERIOD   = 1_000_000_000 / FREQUENCY;
+
+    localparam PAYLOAD_BITS = 16;
 
     // Signals
-    logic       clk;
-    logic       rst;
-    logic       spi_en;
-    logic       spi_miso;
-    logic [7:0] spi_mosi_data;
+    logic                       clk;
+    logic                       rst;
+    logic                       spi_en;
+    logic                       spi_miso;
+    logic [PAYLOAD_BITS - 1:0]  spi_mosi_data;
     
-    logic       spi_clk;
-    logic       spi_mosi;
-    logic       spi_cs;
-    logic [7:0] spi_miso_data;
+    logic                       spi_clk;
+    logic                       spi_mosi;
+    logic                       spi_cs;
+    logic [PAYLOAD_BITS - 1:0]  spi_miso_data;
 
-    logic       payload_done;
-    logic       rx_complete ;
+    logic                       payload_done;
+    logic                       rx_complete ;
 
 
-    logic [7:0] master_rx_data;
-    logic [7:0] slave_rx_data;
+    logic [PAYLOAD_BITS - 1:0]  master_rx_data;
+    logic [PAYLOAD_BITS - 1:0]  slave_rx_data;
 
+    logic transmit_en;
+    logic receive_en;
 
 
     // Instantiate DUT
     spi_module_master #(
-        .FREQUENCY  ( FREQUENCY ),
-        .CLK_HZ     ( CLK_HZ    ),
-        .CPOL       (   0       ),
-        .CPHA       (   0       )
+        .FREQUENCY     ( FREQUENCY    ),
+        .CLK_HZ        ( CLK_HZ       ),
+        .CPOL          (   1          ),
+        .CPHA          (   0          ),
+        .PAYLOAD_BITS  ( PAYLOAD_BITS )
     )
     i_spi_module_master
     (
@@ -49,14 +54,16 @@ module tb_slave;
         .spi_mosi       ( spi_mosi      ),
         .spi_cs         ( spi_cs        ),
         .spi_miso_data  ( master_rx_data),
-        .payload_done   ( payload_done  )
+        .payload_done   ( payload_done  ),
+        .transmit_en    ( transmit_en   )
     );
 
     spi_module_slave #(
-        .FREQUENCY  ( FREQUENCY ),
-        .CLK_HZ     ( CLK_HZ    ),
-        .CPOL       (   0       ),
-        .CPHA       (   0       )
+        .FREQUENCY     ( FREQUENCY      ),
+        .CLK_HZ        ( CLK_HZ         ),
+        .CPOL          (   1            ),
+        .CPHA          (   0            ),
+        .PAYLOAD_BITS  ( PAYLOAD_BITS   )
     )
     i_spi_module_slave
     (
@@ -69,7 +76,8 @@ module tb_slave;
         .spi_mosi       ( spi_mosi      ),
         .spi_cs         ( spi_cs        ),
         .spi_miso_data  ( spi_miso_data ),
-        .rx_complete    ( rx_complete   )
+        .rx_complete    ( rx_complete   ),
+        .receive_en     ( receive_en    )
     );
 
     // Clock generation
@@ -86,20 +94,20 @@ module tb_slave;
 
     task spi_rcv_byte;
     integer i;
-    logic [7:0] spi_master_received_data;
-    logic [7:0] spi_slave_received_data;
+    logic [PAYLOAD_BITS - 1:0] spi_master_received_data;
+    logic [PAYLOAD_BITS - 1:0] spi_slave_received_data;
         begin
             wait(spi_cs == 0);
             $display("CS asserted, starting transmission...");
 
             fork
-                for(int i = 7; i >= 0; i--) 
+                for(int i = PAYLOAD_BITS - 1; i >= 0; i--) 
                 begin
                     @(posedge spi_clk);
                     spi_master_received_data[i] = spi_miso;
                 end
 
-                for(int j = 7; j >= 0; j--) 
+                for(int j = PAYLOAD_BITS - 1; j >= 0; j--) 
                 begin
                     @(posedge spi_clk)
                     spi_slave_received_data[i] = spi_mosi; 
@@ -148,6 +156,7 @@ module tb_slave;
         // Initialize inputs
         rst            = 0;
         spi_en         = 0;
+        transmit_en    = 0;
         spi_mosi_data  = 0;
         
         // Reset sequence
@@ -163,10 +172,14 @@ module tb_slave;
         begin
             spi_mosi_data = $random;
             spi_miso_data = $random;
-            spi_en = 1;
+            spi_en        = 1;
+            transmit_en   = 1;
             spi_rcv_byte();
         end
         
+        spi_en         = 0;
+        transmit_en    = 1;
+
         
         wait(spi_cs == 1);
         $display("MOSI transmission complete");

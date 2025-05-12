@@ -1,23 +1,25 @@
 module spi_module_slave # 
 (
-    parameter FREQUENCY = 1_000_000,
-    parameter CLK_HZ    = 50_000_000,
+    parameter FREQUENCY     = 1_000_000,
+    parameter CLK_HZ        = 50_000_000,
 
-    parameter CPOL      = 0,
-    parameter CPHA      = 0
+    parameter CPOL          = 0,
+    parameter CPHA          = 0,
+    parameter PAYLOAD_BITS  = 8
 )
 (
-    input  wire       clk             , // Top level system clock input.
-    input  wire       rst             , // Asynchronous active low reset.
-    input  wire       spi_en          , // Start/stop signal for SPI
-    input  wire       spi_clk         ,
-    input  wire       spi_mosi        ,
-    input  wire       spi_cs          ,
-    input  reg  [7:0] spi_miso_data   ,
+    input  wire                       clk             , // Top level system clock input.
+    input  wire                       rst             , // Asynchronous active low reset.
+    input  wire                       spi_en          , // Start/stop signal for SPI
+    input  wire                       spi_clk         ,
+    input  wire                       spi_mosi        ,
+    input  wire                       spi_cs          ,
+    input  wire                       receive_en      ,
+    input  reg  [PAYLOAD_BITS - 1:0]  spi_miso_data   ,
 
-    output  wire      spi_miso        ,
-    output  reg [7:0] spi_mosi_data   ,
-    output  reg       rx_complete
+    output  wire                      spi_miso        ,
+    output  reg [PAYLOAD_BITS - 1:0]  spi_mosi_data   ,
+    output  reg                       rx_complete
 );
 
 // -------------------------------------------------------------------------- 
@@ -41,8 +43,8 @@ localparam FSM_STOP  = 3;
 //
 //------------------------------------- INTERNAL REGS --------------------------------------------
 reg [                4:0] bit_cnt;
-reg [                7:0] data_to_send;
-reg [                7:0] data_to_receive;
+reg [PAYLOAD_BITS - 1:0 ] data_to_send;
+reg [PAYLOAD_BITS - 1:0 ] data_to_receive;
 
 reg                       trailing_edge_reg;
 reg                       leading_edge_reg;
@@ -54,15 +56,15 @@ reg                       spi_clk_reg;
 // -------------------------------------- INTERNAL WIRES --------------------------------------
 wire start_transaction  = spi_en & ~spi_cs;
 
-wire save_bit           = CPHA ? (trailing_edge_reg) : (leading_edge_reg);
-wire put_bit            = CPHA ? (leading_edge_reg)  : (trailing_edge_reg);
-wire end_of_transaction = (bit_cnt  == 7) & (trailing_edge_reg);
+wire save_bit           = CPHA ? (trailing_edge_reg    )  : (leading_edge_reg);
+wire put_bit            = CPHA ? (leading_edge_reg     )  : (trailing_edge_reg);
+wire end_of_transaction = (bit_cnt  == PAYLOAD_BITS - 1)  & (trailing_edge_reg);
 // ---------------------------------------------------------------------------------------------
 //
 
 //
 // --------------------------------------- OUTPUT ASSIGNEMENT ---------------------------------
-assign spi_miso         = data_to_send[7 - bit_cnt];
+assign spi_miso         = data_to_send[PAYLOAD_BITS - 1 - bit_cnt];
 // ---------------------------------------------------------------------------------------------
 //
 
@@ -99,7 +101,6 @@ edge_detector #
 i_edge_detector
 (
     .clk            (   clk            ),
-    .rst            (   rst            ),
     .signal         (   spi_clk        ),
     .positive_edge  (leading_edge_reg  ),
     .negative_edge  (trailing_edge_reg )
@@ -126,7 +127,7 @@ end
 //
 //---------------------------------------- LATCHES THE DATA -----------------------------------------
 always_ff @(posedge clk) begin : p_txd_reg
-    if(rst || !spi_en) 
+    if(rst) 
         data_to_send <= 'b0;
     else
     begin
@@ -142,7 +143,7 @@ end
 //
 //-------------------------------------- RECEIVE DATA FROM MASTER -------------------------------------
 always_ff @(posedge clk) begin : p_rxd_reg
-    if(rst || !spi_en)
+    if(rst)
     begin
         spi_mosi_data   <= 'b0;
         data_to_receive <= 'b0;
@@ -154,11 +155,11 @@ always_ff @(posedge clk) begin : p_rxd_reg
 
         if (end_of_transaction)
         begin
-            spi_mosi_data   <= {data_to_receive[7:1], spi_mosi};
+            spi_mosi_data   <= {data_to_receive[PAYLOAD_BITS - 1:1], spi_mosi};
             data_to_receive <= 'b0;
         end
         else if (save_bit)
-                data_to_receive [7-bit_cnt] <= spi_mosi;
+                data_to_receive [PAYLOAD_BITS - 1 - bit_cnt] <= spi_mosi;
     end
 end
 //---------------------------------------------------------------------------------------------------

@@ -4,7 +4,6 @@ module edge_detector #
 )
 (
     input clk,
-    input rst,
     input signal,
     output negative_edge,
     output positive_edge
