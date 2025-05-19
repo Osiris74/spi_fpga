@@ -11,7 +11,7 @@ module spi_module_master #
 (
     input  wire                     clk            , // Top level system clock input.
     input  wire                     rst            , // Asynchronous active low reset.
-    input  wire                     spi_en         , // Start/stop signal for SPI
+    input  wire                     spi_en         , // Start/stop signal SPI protocol
     input  wire                     spi_miso       , // Master input slave output input
     input  wire                     transmit_en    , // Start TX operation
     input  reg  [PAYLOAD_BITS -1:0] spi_mosi_data  , 
@@ -87,7 +87,7 @@ always @(*) begin : p_n_fsm_state
     case(fsm_state)
       FSM_IDLE    : n_fsm_state     = start_transaction ? FSM_START : FSM_IDLE;
       FSM_START   : n_fsm_state     = put_bit           ? FSM_SEND  : FSM_START;
-      FSM_SEND    : n_fsm_state     = (payload_done)    ? FSM_IDLE  : FSM_SEND;
+      FSM_SEND    : n_fsm_state     = (payload_done)    ? (start_transaction ? FSM_START : FSM_IDLE)  : FSM_SEND;
       default: n_fsm_state = FSM_IDLE;
     endcase
 end
@@ -179,7 +179,7 @@ always_ff @(posedge clk) begin : p_txd_reg
     begin
         data_to_send <= data_to_send;
 
-        if(fsm_state == FSM_IDLE && n_fsm_state == FSM_START)
+        if(((fsm_state == FSM_IDLE) | (fsm_state == FSM_SEND)) & n_fsm_state == FSM_START)
             data_to_send <= spi_mosi_data;
     end
 end
